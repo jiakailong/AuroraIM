@@ -21,6 +21,19 @@
       </el-tooltip>
       <el-tooltip
         effect="customized"
+        content="AI聊天"
+        placement="left"
+        hide-after="0"
+        enterable="false"
+      >
+        <button class="icon-btn" @click="handleToAIChat">
+          <el-icon>
+            <MagicStick />
+          </el-icon>
+        </button>
+      </el-tooltip>
+      <el-tooltip
+        effect="customized"
         content="通讯录管理"
         placement="left"
         hide-after="0"
@@ -137,6 +150,10 @@ export default {
       router.push("/chat/sessionlist");
     };
 
+    const handleToAIChat = () => {
+      router.push("/chat/aichat");
+    };
+
     const handleToManager = () => {
       console.log(data.userInfo);
       router.push("/manager");
@@ -165,6 +182,7 @@ export default {
       router,
       handleToContactList,
       handleToSessionList,
+      handleToAIChat,
       handleToOwnInfo,
       logout,
       handleToManager,
