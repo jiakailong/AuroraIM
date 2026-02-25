@@ -39,6 +39,8 @@ staticAvatarPath = "./static/avatars"
 staticFilePath = "./static/files"
 
 [queryConfig]
-mode = "rpc" # local or rpc
+mode = "rpc" # local or rpc or grpc
 rpcListen = "127.0.0.1:19110"
 rpcTarget = "127.0.0.1:19110"
+grpcListen = "127.0.0.1:19120"
+grpcTarget = "127.0.0.1:19120"

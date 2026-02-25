@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package query;
+
+option go_package = "kama_chat_server/proto/query";
+
+service ContactQueryService {
+  rpc GetUserList(GetContactUserListRequest) returns (GetContactUserListResponse);
+  rpc LoadMyJoinedGroup(LoadMyJoinedGroupRequest) returns (LoadMyJoinedGroupResponse);
+  rpc GetContactInfo(GetContactInfoRequest) returns (GetContactInfoResponse);
+  rpc GetNewContactList(GetNewContactListRequest) returns (GetNewContactListResponse);
+  rpc GetAddGroupList(GetAddGroupListRequest) returns (GetAddGroupListResponse);
+}
+
+message GetContactUserListRequest {
+  string owner_id = 1;
+}
+
+message LoadMyJoinedGroupRequest {
+  string owner_id = 1;
+}
+
+message GetContactInfoRequest {
+  string contact_id = 1;
+}
+
+message GetNewContactListRequest {
+  string owner_id = 1;
+}
+
+message GetAddGroupListRequest {
+  string group_id = 1;
+}
+
+message MyUserItem {
+  string user_id   = 1;
+  string user_name = 2;
+  string avatar    = 3;
+}
+
+message GetContactUserListResponse {
+  string              message = 1;
+  repeated MyUserItem list    = 2;
+  int32               ret     = 3;
+}
+
+message JoinedGroupItem {
+  string group_id   = 1;
+  string group_name = 2;
+  string avatar     = 3;
+}
+
+message LoadMyJoinedGroupResponse {
+  string                   message = 1;
+  repeated JoinedGroupItem list    = 2;
+  int32                    ret     = 3;
+}
+
+message ContactInfoDetail {
+  string contact_id         = 1;
+  string contact_name       = 2;
+  string contact_avatar     = 3;
+  string contact_phone      = 4;
+  string contact_email      = 5;
+  int32  contact_gender     = 6;
+  string contact_signature  = 7;
+  string contact_birthday   = 8;
+  string contact_notice     = 9;
+  bytes  contact_members    = 10;
+  int32  contact_member_cnt = 11;
+  string contact_owner_id   = 12;
+  int32  contact_add_mode   = 13;
+}
+
+message GetContactInfoResponse {
+  string            message = 1;
+  ContactInfoDetail info    = 2;
+  int32             ret     = 3;
+}
+
+message NewContactItem {
+  string contact_id     = 1;
+  string contact_name   = 2;
+  string contact_avatar = 3;
+  string msg             = 4;
+}
+
+message GetNewContactListResponse {
+  string                  message = 1;
+  repeated NewContactItem list    = 2;
+  int32                   ret     = 3;
+}
+
+message AddGroupItem {
+  string contact_id     = 1;
+  string contact_name   = 2;
+  string contact_avatar = 3;
+  string msg             = 4;
+}
+
+message GetAddGroupListResponse {
+  string                message = 1;
+  repeated AddGroupItem list    = 2;
+  int32                 ret     = 3;
+}

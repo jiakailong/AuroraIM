@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package query;
+
+option go_package = "kama_chat_server/proto/query";
+
+service SessionQueryService {
+  rpc GetUserSessionList(GetSessionListRequest) returns (UserSessionListResponse);
+  rpc GetGroupSessionList(GetSessionListRequest) returns (GroupSessionListResponse);
+}
+
+message GetSessionListRequest {
+  string owner_id = 1;
+}
+
+message UserSessionItem {
+  string session_id = 1;
+  string avatar     = 2;
+  string user_id    = 3;
+  string user_name  = 4;
+}
+
+message UserSessionListResponse {
+  string                   message = 1;
+  repeated UserSessionItem list    = 2;
+  int32                    ret     = 3;
+}
+
+message GroupSessionItem {
+  string session_id = 1;
+  string group_name = 2;
+  string group_id   = 3;
+  string avatar     = 4;
+}
+
+message GroupSessionListResponse {
+  string                    message = 1;
+  repeated GroupSessionItem list    = 2;
+  int32                     ret     = 3;
+}

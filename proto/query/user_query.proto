@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package query;
+
+option go_package = "kama_chat_server/proto/query";
+
+service UserQueryService {
+  rpc GetUserInfoList(GetUserInfoListRequest) returns (GetUserInfoListResponse);
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+}
+
+message GetUserInfoListRequest {
+  string owner_id = 1;
+}
+
+message GetUserInfoRequest {
+  string uuid = 1;
+}
+
+message UserListItem {
+  string uuid       = 1;
+  string nickname    = 2;
+  string telephone   = 3;
+  int32  status      = 4;
+  int32  is_admin    = 5;
+  bool   is_deleted  = 6;
+}
+
+message GetUserInfoListResponse {
+  string                message = 1;
+  repeated UserListItem list    = 2;
+  int32                 ret     = 3;
+}
+
+message UserInfoDetail {
+  string uuid       = 1;
+  string nickname    = 2;
+  string telephone   = 3;
+  string avatar      = 4;
+  string email       = 5;
+  int32  gender      = 6;
+  string birthday    = 7;
+  string signature   = 8;
+  string created_at  = 9;
+  int32  is_admin    = 10;
+  int32  status      = 11;
+}
+
+message GetUserInfoResponse {
+  string         message = 1;
+  UserInfoDetail info    = 2;
+  int32          ret     = 3;
+}

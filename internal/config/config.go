@@ -54,9 +54,11 @@ type StaticSrcConfig struct {
 }
 
 type QueryConfig struct {
-	Mode      string `toml:"mode"`
-	RPCListen string `toml:"rpcListen"`
-	RPCTarget string `toml:"rpcTarget"`
+	Mode       string `toml:"mode"`
+	RPCListen  string `toml:"rpcListen"`
+	RPCTarget  string `toml:"rpcTarget"`
+	GRPCListen string `toml:"grpcListen"`
+	GRPCTarget string `toml:"grpcTarget"`
 }
 
 type Config struct {

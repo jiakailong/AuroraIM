@@ -27,9 +27,11 @@ type Service interface {
 }
 
 type Config struct {
-	Mode      string
-	RPCListen string
-	RPCTarget string
+	Mode       string
+	RPCListen  string
+	RPCTarget  string
+	GRPCListen string
+	GRPCTarget string
 }
 
 var QueryService Service

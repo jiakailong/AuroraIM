@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package query;
+
+option go_package = "kama_chat_server/proto/query";
+
+import "google/protobuf/empty.proto";
+
+service GroupQueryService {
+  rpc LoadMyGroup(LoadMyGroupRequest) returns (LoadMyGroupResponse);
+  rpc CheckGroupAddMode(CheckGroupAddModeRequest) returns (CheckGroupAddModeResponse);
+  rpc GetGroupInfo(GetGroupInfoRequest) returns (GetGroupInfoResponse);
+  rpc GetGroupInfoList(google.protobuf.Empty) returns (GetGroupInfoListResponse);
+  rpc GetGroupMemberList(GetGroupMemberListRequest) returns (GetGroupMemberListResponse);
+}
+
+message LoadMyGroupRequest {
+  string owner_id = 1;
+}
+
+message CheckGroupAddModeRequest {
+  string group_id = 1;
+}
+
+message GetGroupInfoRequest {
+  string group_id = 1;
+}
+
+message GetGroupMemberListRequest {
+  string group_id = 1;
+}
+
+message MyGroupItem {
+  string group_id   = 1;
+  string group_name = 2;
+  string avatar     = 3;
+}
+
+message LoadMyGroupResponse {
+  string               message = 1;
+  repeated MyGroupItem list    = 2;
+  int32                ret     = 3;
+}
+
+message CheckGroupAddModeResponse {
+  string message  = 1;
+  int32  add_mode = 2;
+  int32  ret      = 3;
+}
+
+message GroupInfoDetail {
+  string uuid       = 1;
+  string name       = 2;
+  string notice     = 3;
+  int32  member_cnt = 4;
+  string owner_id   = 5;
+  int32  add_mode   = 6;
+  int32  status     = 7;
+  string avatar     = 8;
+  bool   is_deleted = 9;
+}
+
+message GetGroupInfoResponse {
+  string          message = 1;
+  GroupInfoDetail info    = 2;
+  int32           ret     = 3;
+}
+
+message GroupListItem {
+  string uuid       = 1;
+  string name       = 2;
+  string owner_id   = 3;
+  int32  status     = 4;
+  bool   is_deleted = 5;
+}
+
+message GetGroupInfoListResponse {
+  string                 message = 1;
+  repeated GroupListItem list    = 2;
+  int32                  ret     = 3;
+}
+
+message GroupMemberItem {
+  string user_id  = 1;
+  string nickname = 2;
+  string avatar   = 3;
+}
+
+message GetGroupMemberListResponse {
+  string                   message = 1;
+  repeated GroupMemberItem list    = 2;
+  int32                    ret     = 3;
+}

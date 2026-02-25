@@ -231,33 +231,61 @@ func Init(config Config) error {
 		QueryService = newLocalService()
 		return nil
 	}
-	if mode != "rpc" {
+
+	switch mode {
+	case "rpc":
+		listenAddress := strings.TrimSpace(config.RPCListen)
+		targetAddress := strings.TrimSpace(config.RPCTarget)
+
+		if listenAddress != "" {
+			if err := ensureRPCServer(listenAddress); err != nil {
+				return err
+			}
+			if targetAddress == "" {
+				targetAddress = listenAddress
+			}
+		}
+
+		if targetAddress == "" {
+			targetAddress = "127.0.0.1:19110"
+			if err := ensureRPCServer(targetAddress); err != nil {
+				return err
+			}
+		}
+
+		service, err := newRPCService(targetAddress)
+		if err != nil {
+			return err
+		}
+		QueryService = service
+		return nil
+	case "grpc":
+		listenAddress := strings.TrimSpace(config.GRPCListen)
+		targetAddress := strings.TrimSpace(config.GRPCTarget)
+
+		if listenAddress != "" {
+			if err := ensureGRPCServer(listenAddress); err != nil {
+				return err
+			}
+			if targetAddress == "" {
+				targetAddress = listenAddress
+			}
+		}
+
+		if targetAddress == "" {
+			targetAddress = "127.0.0.1:19120"
+			if err := ensureGRPCServer(targetAddress); err != nil {
+				return err
+			}
+		}
+
+		service, err := newGRPCService(targetAddress)
+		if err != nil {
+			return err
+		}
+		QueryService = service
+		return nil
+	default:
 		return fmt.Errorf("query: unsupported mode %s", config.Mode)
 	}
-
-	listenAddress := strings.TrimSpace(config.RPCListen)
-	targetAddress := strings.TrimSpace(config.RPCTarget)
-
-	if listenAddress != "" {
-		if err := ensureRPCServer(listenAddress); err != nil {
-			return err
-		}
-		if targetAddress == "" {
-			targetAddress = listenAddress
-		}
-	}
-
-	if targetAddress == "" {
-		targetAddress = "127.0.0.1:19110"
-		if err := ensureRPCServer(targetAddress); err != nil {
-			return err
-		}
-	}
-
-	service, err := newRPCService(targetAddress)
-	if err != nil {
-		return err
-	}
-	QueryService = service
-	return nil
 }

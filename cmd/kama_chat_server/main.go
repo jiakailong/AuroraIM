@@ -34,9 +34,11 @@ func main() {
 	gorm.InitMessageService(messageDAO)
 	gorm.InitUserContactService(userContactDAO, userDAO, groupDAO)
 	if err := query.Init(query.Config{
-		Mode:      conf.QueryConfig.Mode,
-		RPCListen: conf.QueryConfig.RPCListen,
-		RPCTarget: conf.QueryConfig.RPCTarget,
+		Mode:       conf.QueryConfig.Mode,
+		RPCListen:  conf.QueryConfig.RPCListen,
+		RPCTarget:  conf.QueryConfig.RPCTarget,
+		GRPCListen: conf.QueryConfig.GRPCListen,
+		GRPCTarget: conf.QueryConfig.GRPCTarget,
 	}); err != nil {
 		zlog.Fatal("query service init failed: " + err.Error())
 		return

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package query;
+
+option go_package = "kama_chat_server/proto/query";
+
+// ==================== MessageQueryService ====================
+
+service MessageQueryService {
+  rpc GetMessageList(GetMessageListRequest) returns (GetMessageListResponse);
+  rpc GetGroupMessageList(GetGroupMessageListRequest) returns (GetGroupMessageListResponse);
+}
+
+message GetMessageListRequest {
+  string user_one_id = 1;
+  string user_two_id = 2;
+}
+
+message GetGroupMessageListRequest {
+  string group_id = 1;
+}
+
+message MessageItem {
+  string send_id     = 1;
+  string send_name   = 2;
+  string send_avatar = 3;
+  string receive_id  = 4;
+  int32  type        = 5;
+  string content     = 6;
+  string url         = 7;
+  string file_type   = 8;
+  string file_name   = 9;
+  string file_size   = 10;
+  string created_at  = 11;
+}
+
+message GetMessageListResponse {
+  string               message = 1;
+  repeated MessageItem list    = 2;
+  int32                ret     = 3;
+}
+
+message GetGroupMessageListResponse {
+  string               message = 1;
+  repeated MessageItem list    = 2;
+  int32                ret     = 3;
+}
