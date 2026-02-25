@@ -37,3 +37,8 @@ timeout = 1 # 单位秒
 [staticSrcConfig]
 staticAvatarPath = "./static/avatars"
 staticFilePath = "./static/files"
+
+[queryConfig]
+mode = "rpc" # local or rpc
+rpcListen = "127.0.0.1:19110"
+rpcTarget = "127.0.0.1:19110"

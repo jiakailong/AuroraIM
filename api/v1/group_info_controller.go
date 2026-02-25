@@ -1,12 +1,14 @@
 package v1
 
 import (
-	"github.com/gin-gonic/gin"
 	"kama_chat_server/internal/dto/request"
 	"kama_chat_server/internal/service/gorm"
+	"kama_chat_server/internal/service/query"
 	"kama_chat_server/pkg/constants"
 	"kama_chat_server/pkg/zlog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // CreateGroup 创建群聊
@@ -35,7 +37,7 @@ func LoadMyGroup(c *gin.Context) {
 		})
 		return
 	}
-	message, groupList, ret := gorm.GroupInfoService.LoadMyGroup(loadMyGroupReq.OwnerId)
+	message, groupList, ret := query.QueryService.LoadMyGroup(loadMyGroupReq.OwnerId)
 	JsonBack(c, message, ret, groupList)
 }
 
@@ -50,7 +52,7 @@ func CheckGroupAddMode(c *gin.Context) {
 		})
 		return
 	}
-	message, addMode, ret := gorm.GroupInfoService.CheckGroupAddMode(req.GroupId)
+	message, addMode, ret := query.QueryService.CheckGroupAddMode(req.GroupId)
 	JsonBack(c, message, ret, addMode)
 }
 
@@ -110,13 +112,13 @@ func GetGroupInfo(c *gin.Context) {
 		})
 		return
 	}
-	message, groupInfo, ret := gorm.GroupInfoService.GetGroupInfo(req.GroupId)
+	message, groupInfo, ret := query.QueryService.GetGroupInfo(req.GroupId)
 	JsonBack(c, message, ret, groupInfo)
 }
 
 // GetGroupInfoList 获取群聊列表 - 管理员
 func GetGroupInfoList(c *gin.Context) {
-	message, groupList, ret := gorm.GroupInfoService.GetGroupInfoList()
+	message, groupList, ret := query.QueryService.GetGroupInfoList()
 	JsonBack(c, message, ret, groupList)
 }
 
@@ -176,7 +178,7 @@ func GetGroupMemberList(c *gin.Context) {
 		})
 		return
 	}
-	message, groupMemberList, ret := gorm.GroupInfoService.GetGroupMemberList(req.GroupId)
+	message, groupMemberList, ret := query.QueryService.GetGroupMemberList(req.GroupId)
 	JsonBack(c, message, ret, groupMemberList)
 }
 

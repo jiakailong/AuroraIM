@@ -1,203 +1,103 @@
-# KamaChat RPC 开发 Skills（开发前必读）
+# DEVELOPMENT_SKILL.md (For Codex)
 
-## 1. 使用说明
-- 本文档是 RPC 开发规范清单。
-- 每次开始开发前必须先阅读全文并完成“开发前检查清单”。
-- 目标：保证架构一致性、代码可维护性、上线可回退。
+你正在为 chat/pkg/rpc 开发一个可用的 RPC 框架。每次开始编码前必须阅读本文件与 protocol/PROTOCOL.md。
+目标：代码规范、可扩展、可测试、可集成到聊天系统。
 
 ---
 
-## 2. 核心开发 Skills
+## 1. 模块边界（必须遵守，避免循环依赖）
+- api：只做 context/metadata/types，不依赖 client/server/transport
+- protocol：只做二进制协议与 Frame 编解码，不依赖 codec/client/server
+- codec：只做序列化实现，不依赖 client/server/transport
+- transport：只做连接管理、read/write loop、pool/heartbeat，不理解 “service/method”
+- server：负责 Register/dispatch/middleware/handler，调用 protocol/codec/transport
+- client：负责 Invoke/Call/pending/timeout/retry/lb/registry/pool，调用 protocol/codec/transport
+- middleware：只依赖 api/errors/observability，不直接依赖 transport
+- observability：只提供 logger/metrics/tracing 适配接口，不依赖 client/server 具体实现
+- errors：统一错误码与 RpcError，任何层都可依赖
 
-### Skill 01：边界优先（Architecture Boundary）
-**目标**
-- 保证 `pkg/rpc` 可复用、独立于业务。
-
-**规则**
-- `pkg/rpc` 禁止依赖 `internal/*`。
-- 业务类型不得直接进入框架层，统一走 DTO/接口。
-- 所有能力通过接口暴露，避免硬编码。
-
-**自检问题**
-- 是否出现框架层导入业务包？
-- 是否把业务常量写进框架？
+若出现循环依赖，优先：提取接口/类型到 api 或 errors 或 observability。
 
 ---
 
-### Skill 02：协议先行（Protocol First）
-**目标**
-- 控制协议演进风险，保持可兼容。
-
-**规则**
-- 先定义协议字段，再实现收发逻辑。
-- 所有协议变更必须增加版本说明。
-- 新字段默认向后兼容，避免破坏旧客户端。
-
-**自检问题**
-- 协议文档是否与代码一致？
-- 是否考虑版本兼容策略？
+## 2. 协议一致性（必须）
+- 所有 Frame 必须符合 protocol/PROTOCOL.md 的字段与字节序（BigEndian）。
+- 禁止“临时改协议字段”。协议变更必须：
+  1) 更新 protocol/PROTOCOL.md
+  2) bump Version 或保持向后兼容
+  3) 更新 tests/protocol_test.go
 
 ---
 
-### Skill 03：Context 全链路（Timeout & Cancel）
-**目标**
-- 保证请求可控可取消，防止资源泄漏。
-
-**规则**
-- 公共调用入口必须接收 `context.Context`。
-- 必须设置超时，不允许无限等待。
-- cancel 后必须释放 pending request 和连接资源。
-
-**自检问题**
-- 有没有未受控的阻塞 IO？
-- 超时后是否仍持有 goroutine/连接？
+## 3. 并发与网络 I/O 规则（必须）
+- 严禁多个 goroutine 并发写同一个 net.Conn。
+  - 必须通过 writeLoop + writeChan 串行写。
+- readLoop 只负责解帧与投递上层，不做耗时业务。
+- pending map 必须加锁（mutex）或使用 sync.Map；超时/取消必须清理 pending，避免泄漏。
+- Close() 必须幂等（sync.Once 或原子标记），并确保 read/write goroutine 可退出。
 
 ---
 
-### Skill 04：错误码统一（Error Contract）
-**目标**
-- 让调用方可稳定处理错误。
-
-**规则**
-- 框架错误与业务错误分层。
-- 所有对外错误可映射到统一错误码。
-- 错误日志必须带 requestId、service、method。
-
-**自检问题**
-- 是否存在仅返回字符串错误而无错误码？
-- 错误是否可定位到具体调用？
+## 4. 超时与取消（必须）
+- client.Call/Invoke 必须接受 context.Context。
+- ctx 超时/取消时：
+  - 立即返回
+  - 清理 pending
+  - 不允许 goroutine 持续阻塞等待响应
+- server 侧执行 handler 使用 ctx（可基于 header TimeoutMs/metadata deadline 取 min）。
 
 ---
 
-### Skill 05：可观测性内建（Observability）
-**目标**
-- 第一时间定位线上问题。
+## 5. 错误语义（必须）
+- 统一使用 errors 包的 Code 与 RpcError。
+- Response 的 statusCode != OK：
+  - client 返回 *errors.RpcError（保留 Code/Message）
+- 方法不存在 -> NotFound
+- 连接不可用 -> Unavailable
+- ctx 超时 -> Timeout
+- panic -> Internal（并 recover）
 
-**规则**
-- 每次 RPC 调用记录：requestId、耗时、结果。
-- metrics 至少包含：请求总数、错误数、延迟分位。
-- 关键路径透传 trace_id。
-
-**自检问题**
-- 出问题时是否能追踪完整链路？
-- 是否能从指标看出退化趋势？
+禁止在业务层用 fmt.Errorf("xxx") 直接吞掉错误码。
 
 ---
 
-### Skill 06：可靠性优先（Reliability）
-**目标**
-- 避免因网络抖动导致整体不可用。
-
-**规则**
-- 连接池、心跳、重连必须成套实现。
-- 重试默认关闭，仅幂等接口可开启。
-- 写操作严控重试，防止重复写入。
-
-**自检问题**
-- 断链后是否能自动恢复？
-- 写接口是否被错误重试？
+## 6. Middleware（拦截器）规则
+- middleware 必须是纯函数式链式：
+  - logging、recovery、metrics、auth（可选）
+- logging 输出必须包含：
+  - method、requestID、trace_id、latency、code
+- recovery 必须捕获 panic 并转为 Internal 错误码
 
 ---
 
-### Skill 07：灰度迁移（Safe Migration）
-**目标**
-- 接入现有项目时可平滑回退。
-
-**规则**
-- 每个业务接口支持 `local/rpc` 双模式。
-- 先迁移查询链路，再迁移写链路。
-- 每次上线都保留回退开关。
-
-**自检问题**
-- 当前改动是否可一键回退？
-- 是否有接口一致性对比结果？
+## 7. 可观测性规则
+- 不允许在核心路径直接 fmt.Printf。
+- 统一通过 observability/logger.go 的 Logger 接口输出。
+- trace_id 必须通过 api/context.go 的 Metadata 透传（键名固定：trace_id）。
 
 ---
 
-### Skill 08：测试先行（Test First on Core Path）
-**目标**
-- 保证核心稳定，避免回归。
-
-**规则**
-- 协议、并发、超时、重试必须有测试。
-- 新增能力必须包含最小集成测试。
-- 修复 bug 必须补回归测试。
-
-**自检问题**
-- 本次改动是否覆盖关键测试？
-- 是否存在“只能手工验证”的核心逻辑？
+## 8. 测试与验收（每次提交前必做）
+- gofmt：所有文件必须 gofmt
+- go test ./... 必须通过
+- 涉及并发/网络变更时，至少跑：go test -race ./pkg/rpc/...
+- 新增协议/拆包逻辑必须补 tests/protocol_test.go
+- 新增 client/server 功能必须补 tests/client_server_test.go 或 timeout_retry_test.go
 
 ---
 
-### Skill 09：代码可读性（Readability）
-**目标**
-- 降低后续维护成本。
-
-**规则**
-- 单文件不超过 400 行，复杂逻辑拆分。
-- 导出类型和函数写清晰注释。
-- 命名统一：名词表示对象，动词表示行为。
-
-**自检问题**
-- 3 个月后别人能否快速接手？
-- 是否有“魔法值/隐式行为”未说明？
+## 9. 代码风格（必须）
+- 公开 API（client/server/options）写 GoDoc 注释
+- 重要结构体字段写注释（例如 pending/connPool）
+- 选项使用 Option Pattern（func(*Options)）
+- 避免全局变量；常量放 protocol/constants.go 或 errors/code.go
+- 返回错误时尽量 wrap：fmt.Errorf("xxx: %w", err)
 
 ---
 
-### Skill 10：发布与回退（Release Discipline）
-**目标**
-- 保证线上发布可控。
-
-**规则**
-- 发布前必须有压测基线与回退预案。
-- 发布后必须观察关键指标并记录结论。
-- 高风险改动必须分批次灰度。
-
-**自检问题**
-- 是否定义失败阈值与回退条件？
-- 发布后谁负责监控与响应？
-
----
-
-## 3. 开发前检查清单（每次必须勾选）
-- [ ] 已阅读本文件并确认本次改动范围。
-- [ ] 已确认不违反 `pkg/rpc` 与业务层依赖边界。
-- [ ] 已定义本次改动的错误码与超时策略。
-- [ ] 已设计日志字段（至少 requestId/service/method/latency）。
-- [ ] 已明确是否需要重试及幂等策略。
-- [ ] 已准备对应单元测试/集成测试。
-- [ ] 已明确灰度方式与回退路径。
-
----
-
-## 4. 开发中检查清单
-- [ ] context 在入口到调用链中完整透传。
-- [ ] 连接、goroutine、channel 生命周期可收敛。
-- [ ] 错误返回有 code 且日志可定位。
-- [ ] 新增配置项有默认值并可关闭。
-
----
-
-## 5. 开发后检查清单
-- [ ] 单测通过（协议/并发/超时/重试）。
-- [ ] 集成测试通过（真实 TCP 调用）。
-- [ ] 与旧链路行为一致性已验证。
-- [ ] 文档更新完成（README/计划/变更说明）。
-
----
-
-## 6. 推荐工作流（每个任务）
-1. 阅读本 skills 文件并勾选“开发前检查清单”。
-2. 写最小设计草图（接口、数据流、失败路径）。
-3. 先写测试样例，再实现主路径。
-4. 本地验证通过后再提交。
-5. PR 中附：风险点、验证结果、回退方案。
-
----
-
-## 7. 与当前项目的落地建议
-- 第一优先：消息查询链路（读接口）接入 RPC。
-- 第二优先：用户与会话查询链路。
-- 最后处理：WS 消息写入链路与灰度切换。
-
-> 目标不是一次做完全部能力，而是每周都可验证、可上线、可回退。
+## 10. 输出要求
+每次生成代码必须同时输出：
+1) 修改/新增了哪些文件
+2) 新增了哪些 public API
+3) 对应新增/更新了哪些 tests
+4) 如协议/行为变更，指出是否需要更新 PROTOCOL.md

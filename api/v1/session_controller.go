@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"kama_chat_server/internal/dto/request"
 	"kama_chat_server/internal/service/gorm"
+	"kama_chat_server/internal/service/query"
 	"kama_chat_server/pkg/constants"
 	"kama_chat_server/pkg/zlog"
 	"net/http"
@@ -35,7 +36,7 @@ func GetUserSessionList(c *gin.Context) {
 		})
 		return
 	}
-	message, sessionList, ret := gorm.SessionService.GetUserSessionList(getUserSessionListReq.OwnerId)
+	message, sessionList, ret := query.QueryService.GetUserSessionList(getUserSessionListReq.OwnerId)
 	JsonBack(c, message, ret, sessionList)
 }
 
@@ -50,7 +51,7 @@ func GetGroupSessionList(c *gin.Context) {
 		})
 		return
 	}
-	message, groupList, ret := gorm.SessionService.GetGroupSessionList(getGroupListReq.OwnerId)
+	message, groupList, ret := query.QueryService.GetGroupSessionList(getGroupListReq.OwnerId)
 	JsonBack(c, message, ret, groupList)
 }
 

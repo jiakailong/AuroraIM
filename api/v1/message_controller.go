@@ -1,11 +1,13 @@
 package v1
 
 import (
-	"github.com/gin-gonic/gin"
 	"kama_chat_server/internal/dto/request"
 	"kama_chat_server/internal/service/gorm"
+	"kama_chat_server/internal/service/query"
 	"kama_chat_server/pkg/constants"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // GetMessageList 获取聊天记录
@@ -18,7 +20,7 @@ func GetMessageList(c *gin.Context) {
 		})
 		return
 	}
-	message, rsp, ret := gorm.MessageService.GetMessageList(req.UserOneId, req.UserTwoId)
+	message, rsp, ret := query.QueryService.GetMessageList(req.UserOneId, req.UserTwoId)
 	JsonBack(c, message, ret, rsp)
 }
 
@@ -32,7 +34,7 @@ func GetGroupMessageList(c *gin.Context) {
 		})
 		return
 	}
-	message, rsp, ret := gorm.MessageService.GetGroupMessageList(req.GroupId)
+	message, rsp, ret := query.QueryService.GetGroupMessageList(req.GroupId)
 	JsonBack(c, message, ret, rsp)
 }
 

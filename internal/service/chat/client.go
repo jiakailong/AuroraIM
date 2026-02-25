@@ -3,9 +3,6 @@ package chat
 import (
 	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"github.com/segmentio/kafka-go"
 	"kama_chat_server/internal/config"
 	"kama_chat_server/internal/dao"
 	"kama_chat_server/internal/dto/request"
@@ -17,6 +14,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/segmentio/kafka-go"
 )
 
 type MessageBack struct {

@@ -1,4 +1,4 @@
-# KamaChat 自研 RPC 框架开发计划
+#AChat RPC 框架开发计划
 
 ## 1. 目标与范围
 
@@ -139,119 +139,240 @@ cmd/
 
 ## 5. 分阶段开发计划
 
-## 阶段 A：框架骨架（第 1 周）
+## Day 1：定协议（第一版）+ Frame 编解码单测
+实现：
+- protocol/constants.go：Magic/Version/MsgType/Flags/CodecID
+- protocol/header.go：FixedHeader 编码/解码（BigEndian），字段校验
+- protocol/frame.go：ReadFrame/WriteFrame（io.ReadFull + 长度字段）
+- protocol/message.go：Frame/Request/Response 结构定义
 
-### 目标
-- 搭建目录、核心接口、协议定义。
+测试：
+- tests/protocol_test.go：
+  - Encode->Decode 一致性
+  - 粘包：连续两帧拼在一起可正确拆出
+  - 半包：分段 reader 仍能正确解帧
+文档：
+- protocol/PROTOCOL.md 初稿（先把 header 字节布局写清）
 
-### 任务
-- 定义 `Request/Response` 标准结构。
-- 定义协议头字段：magic/version/msgType/codec/requestId/timeout/bodyLen。
-- 完成编帧拆帧工具。
-- 实现 JSON codec。
-
-### 里程碑
-- 本地单测通过：协议编解码正确。
-
----
-
-## 阶段 B：最小可用 RPC（第 2 周）
-
-### 目标
-- 跑通 1 个服务端 + 1 个客户端同步调用。
-
-### 任务
-- 实现 `server.Register()`（反射注册方法）。
-- 实现 `client.Call(ctx, service, method, req, resp)`。
-- 处理 requestId 映射，支持并发请求。
-- 完成基础错误返回。
-
-### 里程碑
-- `examples/echo` 可运行，支持并发 100 请求。
+验收：
+- `go test ./pkg/rpc/tests -run TestProtocol -v`
 
 ---
 
-## 阶段 C：可用性增强（第 3 周）
+## Day 2：Codec（先 JSON）+ Body 编解码单测
+实现：
+- codec/codec.go：Codec 接口（Name/ID/Marshal/Unmarshal）
+- codec/json_codec.go：JSON 实现
+- codec/proto_codec.go：保留接口与 TODO（不实现也行，但必须能编译）
 
-### 目标
-- 补齐生产必需能力。
+测试：
+- tests/codec_test.go：JSON codec 对 request/response payload 的正确性
 
-### 任务
-- 客户端连接池。
-- 超时控制与 context 取消。
-- 心跳与断连重连。
-- 幂等请求的重试策略（默认关闭，按接口开启）。
-
-### 里程碑
-- 断开服务端后客户端可恢复。
-- 超时与取消行为可预测。
+验收：
+- `go test ./pkg/rpc/tests -run TestCodec -v`
 
 ---
 
-## 阶段 D：治理与观测（第 4 周）
+## Day 3：Transport Conn（读写循环 + 写队列）+ Echo example
+实现：
+- transport/client_conn.go：
+  - Conn 结构：net.Conn + readLoop + writeLoop + writeChan
+  - 只允许 writeLoop 写 socket（避免并发写）
+  - Close 语义（幂等关闭、退出循环、清理 chan）
+- transport/server.go：
+  - Listen/Accept（只做接入，不做 RPC dispatch）
+  - 每连接交给上层回调（onFrame / onClose）
 
-### 目标
-- 完成基本中间件与可观测能力。
+示例：
+- examples/echo/server/main.go：收到 frame 原样返回
+- examples/echo/client/main.go：发送 frame 并打印返回
 
-### 任务
-- 日志中间件（包含 requestId、service、method、耗时）。
-- Recovery 中间件（panic 保护）。
-- Metrics 指标（请求总数、错误数、耗时分布）。
-- 统一错误码映射规则。
-
-### 里程碑
-- 排障时可追踪一次调用链。
-
----
-
-## 阶段 E：接入消息查询服务（第 5 周）
-
-### 目标
-- 将消息查询链路迁移到自研 RPC。
-
-### 任务
-- 新增 `cmd/rpc_message_server/main.go`。
-- 提供 RPC 方法：
-	- `MessageService.GetMessageList`
-	- `MessageService.GetGroupMessageList`
-- 在 `internal/service/gorm/message_service.go` 增加切换逻辑：
-	- `mode=local` 调用原 DAO
-	- `mode=rpc` 调用 RPC Client
-
-### 里程碑
-- 两个消息查询接口 local/rpc 返回一致。
+验收：
+- 手动跑 echo：client 能收到一致 frame
 
 ---
 
-## 阶段 F：接入用户与会话查询（第 6 周）
+## Day 4：错误码体系 + api/context 元数据模型
+实现：
+- errors/code.go：OK/BadRequest/NotFound/Internal/Timeout/Unavailable
+- errors/rpc_error.go：RpcError{Code,Message,Details}
+- errors/convert.go：将协议 status + body 转为 Go error
+- api/context.go：Metadata(trace_id, deadline, auth_token 等) 的 Set/Get（统一 key）
+- api/types.go：通用 request/response 基础类型（如 Envelope 可选）
 
-### 目标
-- 扩展 RPC 价值面，提升架构一致性。
+测试：
+- 新增单测：RpcError 的编码/解码约定（可复用 JSON）
 
-### 任务
-- 新增 `rpc_user_server`、`rpc_session_server`。
-- 将读接口优先迁移（不先改写接口）。
-- 补齐接口级别超时与重试配置。
+验收：
+- `go test ./pkg/rpc/tests -run TestError -v`（可并入 codec_test）
 
-### 里程碑
-- 核心查询类接口全部可走 RPC。
+---
+
+## Day 5：Server MVP（无反射先跑通）+ client/server 集成测试雏形
+实现：
+- server/server.go：生命周期、Serve(listener)、Close()
+- server/dispatcher.go：收到 Request frame -> 找 handler -> 执行 -> 写 Response
+- server/handler.go：handler 接口（先手工注册 map[method]func）
+
+测试：
+- tests/client_server_test.go：起 server + client 调用成功（先不反射）
+验收：
+- client 能 Call 到 server 并拿到 response
 
 ---
 
-## 阶段 G：消息写链路评估与灰度（第 7-8 周）
+## Day 6：反射服务注册（核心）+ panic recover
+实现：
+- server/service_register.go：
+  - Register(service any)：扫描导出方法
+  - 约束签名：func(ctx context.Context, req *T) (*U, error)
+  - 生成 methodKey = "Service.Method"
+- server/handler.go：反射调用适配（decode req -> call -> encode resp）
+- middleware/recovery.go：panic recover（server handler 层）
 
-### 目标
-- 评估并推进写链路 RPC 化（可选，需灰度）。
+测试：
+- tests/client_server_test.go：使用反射注册的 HelloService 调用成功
+- handler panic -> 返回 Internal
 
-### 任务
-- 对 `chat/server.go`、`chat/kafka_server.go` 的写 DB 部分做抽象。
-- 增加 `MessageCommand` RPC 服务（创建消息、更新状态）。
-- 用配置开关灰度发布，出现异常可一键回退。
-
-### 里程碑
-- 在灰度环境稳定运行，错误率可控。
+验收：
+- 方法不存在 -> NotFound
+- panic 不崩进程
 
 ---
+
+## Day 7：Client Invoke/Call（pending 并发匹配 + timeout）+ 超时单测
+实现：
+- client/options.go：默认超时/codec/registry/balancer 配置
+- client/invoke.go：
+  - requestID 生成
+  - pending map[requestID]chan resp（mutex保护）
+  - ctx 超时/取消时清理 pending
+- client/client.go：门面 NewClient/Call/Close
+
+测试：
+- tests/timeout_retry_test.go：
+  - server sleep > timeout -> client 返回 Timeout
+  - pending 清理（至少保证不会永久阻塞）
+
+验收：
+- 并发 200+ 调用不串包（建议加一个并发用例）
+
+---
+
+## Day 8：middleware 链（logging + recovery）+ tracing 透传（最小）
+实现：
+- middleware/middleware.go：Unary middleware chain
+- middleware/logging.go：method/requestID/trace_id/latency/code
+- observability/logger.go：logger 接口 + 默认实现
+- observability/tracing.go：trace_id 生成/透传（写入 metadata）
+- api/context.go：确保 trace_id 可取
+
+测试：
+- 在 examples/echo 或 message_query 输出日志验证链路
+验收：
+- 每次调用日志包含 trace_id、耗时、code
+
+---
+
+## Day 9：心跳与保活（ping/pong）+ 连接健康检测
+实现：
+- transport/heartbeat.go：
+  - MsgTypePing/MsgTypePong
+  - client 定时 ping；server 回复 pong
+  - 超时判定连接不可用（供 pool 使用）
+
+测试：
+- 基础集成测试（可写在 client_server_test 或单独 test）
+验收：
+- server kill 后 client 不会永久卡住（返回 Unavailable/Timeout）
+
+---
+
+## Day 10：连接池（Pool）+ Dial 管理
+实现：
+- transport/conn_pool.go：
+  - Get/Put/Discard
+  - maxConn/idleConn
+  - 坏连接剔除
+- transport/client_conn.go：暴露健康状态/最后活跃时间（供 pool）
+- client/client.go/invoke.go：使用 pool 获取连接
+
+测试：
+- tests/benchmark_test.go 或单测：并发调用时连接数受控（可打印或用计数器）
+验收：
+- 不会每次 call 都新建连接
+
+---
+
+## Day 11：Registry（静态/内存）+ 客户端选择实例
+实现：
+- registry/registry.go：List(service) []Instance（Watch 可先不做）
+- registry/static_registry.go：静态配置
+- registry/memory_registry.go：测试用
+- client/options.go：支持设置 registry 与 serviceName->instances
+
+验收：
+- message_query 支持配置多个 server 地址
+
+---
+
+## Day 12：负载均衡（RR/Random）+ failover
+实现：
+- balancer/balancer.go：Pick(instances, key) -> Instance
+- balancer/round_robin.go：轮询
+- balancer/random.go：随机（可选）
+- client/invoke.go：
+  - registry list -> balancer pick -> call
+  - 失败时 failover（换下一个实例，最多 1-2 次）
+
+验收：
+- 起 2 个 server：调用分摊
+- 干掉一个：还能自动换另一个
+
+---
+
+## Day 13：Retry（谨慎）+ 幂等约束（为聊天落地做铺垫）
+实现：
+- client/retry.go：退避策略（exponential backoff + jitter）
+- client/invoke.go：只对可重试 code（Unavailable/Timeout）触发
+- 强约束：需要 option 标记该方法/请求为 Idempotent 才允许重试
+
+（聊天侧准备）
+- message_query 的 SendMessage 增加 clientMsgID（为去重）
+
+测试：
+- tests/timeout_retry_test.go：模拟 Unavailable -> 重试成功（幂等场景）
+验收：
+- 非幂等默认不重试
+
+---
+
+## Day 14：集成到聊天（先 examples/message_query，再接真实 Gateway/Message）
+实现：
+- examples/message_query：
+  - server：MessageService.SendMessage / PullOffline（可简化存储）
+  - client：调用并展示结果
+- 聊天集成（最小闭环）：
+  - Gateway：收到 WS send -> rpc client Call SendMessage
+  - MessageService：RPC Server，落库/写缓存（或先内存+日志）
+
+验收：
+- A 发消息 -> Gateway RPC -> MessageService -> 返回 ack -> WS 返回
+- B 离线 -> PullOffline 拉取（建议实现）
+
+---
+
+## Day 15：压测/整理/文档收尾（让它“面试可讲”）
+实现：
+- tests/benchmark_test.go：并发压测（打印 qps/avg/p95）
+- middleware/metrics.go + observability/metrics.go：最简指标（计数/耗时/inflight），Prom 预留接口即可
+- README.md：架构图、运行方式、协议链接、bench 结果
+- DEVELOPMENT_PLAN.md 更新完成情况
+
+验收：
+- `go test ./...`
+- `go test -race ./pkg/rpc/...`（至少 rpc 相关包）
+- examples 一键可运行
 
 ## 6. 开发规范与编码约定
 - 框架层禁止依赖业务包（`internal/*`），必须保持独立。
@@ -329,197 +450,12 @@ cmd/
 
 > 建议节奏：先跑通，再治理，再扩展。避免一开始做成大而全，导致接入延迟。
 
----
-
-## 12. 每周开发计划（按项目结构落地）
-
-> 执行规则：每周开始前先阅读 `pkg/rpc/DEVELOPMENT_SKILLS.md`，完成“开发前检查清单”后再开始编码。
-
-### Week 1：框架骨架与协议定稿
-
-**目标**
-- 完成 `api/protocol/codec` 三层骨架。
-- 定义并冻结 V1 协议头字段。
-
-**开发内容（对应目录）**
-- `pkg/rpc/api`：Request/Response、Meta、Context。
-- `pkg/rpc/protocol`：Header、Frame、消息常量、编码边界。
-- `pkg/rpc/codec`：Codec 接口 + JSON 实现。
-
-**交付物**
-- 可执行的协议编解码单测。
-- 协议文档（字段定义+兼容规则）。
-
-**验收标准（DoD）**
-- 协议 encode/decode 1000 次随机输入无 panic。
-- 错误输入可稳定返回统一错误码。
-
-### Week 2：Server/Client MVP 打通
-
-**目标**
-- 实现最小可用 RPC 调用链（同步请求响应）。
-
-**开发内容（对应目录）**
-- `pkg/rpc/server`：服务注册、反射路由、请求分发。
-- `pkg/rpc/client`：Call/Invoke、requestId 映射。
-- `pkg/rpc/transport`：TCP 连接建立、读写循环。
-
-**交付物**
-- `examples/echo` 双端示例可运行。
-- 并发请求匹配测试。
-
-**验收标准（DoD）**
-- 100 并发调用下响应无错配。
-- 客户端与服务端异常均可定位日志。
-
-### Week 3：可用性增强（超时/重试/心跳）
-
-**目标**
-- 补齐生产必需能力，降低网络抖动影响。
-
-**开发内容（对应目录）**
-- `pkg/rpc/client/retry.go`：幂等重试策略。
-- `pkg/rpc/transport/heartbeat.go`：心跳与断连重连。
-- `pkg/rpc/transport/conn_pool.go`：连接复用。
-
-**交付物**
-- 超时取消测试、断连恢复测试。
-
-**验收标准（DoD）**
-- 服务端短暂重启后客户端可恢复调用。
-- 超时请求能在预期窗口内释放资源。
-
-### Week 4：治理能力（中间件/错误码/可观测）
-
-**目标**
-- 建立统一治理底座，支撑后续业务接入。
-
-**开发内容（对应目录）**
-- `pkg/rpc/middleware`：logging/recovery/metrics。
-- `pkg/rpc/errors`：统一错误码与错误映射。
-- `pkg/rpc/observability`：trace_id、耗时统计。
-
-**交付物**
-- 调用日志规范 + 指标定义文档。
-
-**验收标准（DoD）**
-- 每次 RPC 调用可追踪 requestId、service、method、耗时。
-- panic 可被 recovery 拦截并返回标准错误。
-
-### Week 5：接入消息查询服务（第一条业务链路）
-
-**目标**
-- 将消息查询接口切换为可选 RPC 模式。
-
-**开发内容（对应目录）**
-- `cmd/rpc_message_server/main.go`：消息查询 RPC 服务进程。
-- `internal/service/rpc_client`（新增）：消息查询客户端封装。
-- `internal/service/gorm/message_service.go`：`local/rpc` 双模式。
-
-**交付物**
-- 两个消息查询接口在 local/rpc 模式返回一致性报告。
-
-**验收标准（DoD）**
-- `GetMessageList`、`GetGroupMessageList` 可配置切换。
-- 切换失败可快速回退 local。
-
-### Week 6：接入用户与会话查询
-
-**目标**
-- 扩展查询类场景，形成统一接入模板。
-
-**开发内容（对应目录）**
-- `cmd/rpc_user_server/main.go`。
-- `cmd/rpc_session_server/main.go`。
-- `internal/service/rpc_client`：user/session 调用封装。
-
-**交付物**
-- 用户与会话查询接口接入说明文档。
-
-**验收标准（DoD）**
-- 查询接口可稳定运行在 RPC 模式。
-- 错误率与延迟满足基线目标。
-
-### Week 7：写链路抽象与灰度准备
-
-**目标**
-- 为消息写入链路 RPC 化做抽象，不直接全量切换。
-
-**开发内容（对应目录）**
-- `internal/service/chat`：抽离消息持久化调用点。
-- `pkg/rpc/examples/message_query` 扩展为 command/query 分离示例。
-- 增加写链路灰度开关。
-
-**交付物**
-- 写链路改造设计评审文档。
-
-**验收标准（DoD）**
-- 写链路已具备可切换能力，但默认仍走旧路径。
-
-### Week 8：写链路小流量灰度
-
-**目标**
-- 小范围验证消息写入 RPC 化的稳定性。
-
-**开发内容（对应目录）**
-- `cmd/rpc_message_server` 增加 `MessageCommand`。
-- 配置中心/配置文件接入灰度比例参数。
-- 线上观察日志、错误率、消息一致性。
-
-**交付物**
-- 灰度报告（成功率、P95、回退记录）。
-
-**验收标准（DoD）**
-- 灰度期间无严重消息丢失或重复写事故。
-- 支持一键回退至 local 逻辑。
-
-### Week 9：性能优化与稳定性加固
-
-**目标**
-- 在功能稳定后优化吞吐与延迟。
-
-**开发内容（对应目录）**
-- 连接池参数调优、序列化优化。
-- 热点接口压测与瓶颈分析。
-- 引入更细粒度性能指标。
-
-**交付物**
-- 性能压测报告 + 参数建议。
-
-**验收标准（DoD）**
-- 相比 Week 6 版本，P95 或 QPS 有明确提升。
-
-### Week 10：发布固化与文档交付
-
-**目标**
-- 完成框架沉淀与团队交接。
-
-**开发内容（对应目录）**
-- `pkg/rpc/README.md` 完整化。
-- 运维发布手册、排障手册、回退手册。
-- 统一代码模板和新服务接入模板。
-
-**交付物**
-- 可复用 RPC 框架 v1.0。
-- 团队可执行的开发与运维手册。
-
-**验收标准（DoD）**
-- 新业务可按模板在 1 天内完成 RPC 接入。
 
 ---
 
-## 13. 开发前必读机制（Skills Gate）
-
-### 13.1 机制定义
-- 每次开始开发前，必须阅读 `pkg/rpc/DEVELOPMENT_SKILLS.md`。
-- 未完成文档中的“开发前检查清单”，不得开始编码。
-
-### 13.2 执行方式
-1. 在任务开始时勾选 skills 清单。
-2. 提交 PR 时附上“skills 清单截图或勾选记录”。
-3. Code Review 先审规范合规，再审业务逻辑。
-
-### 13.3 审核重点
-- 是否违反框架层依赖边界。
-- 是否遗漏超时、错误码、日志与 context 透传。
-- 是否补充测试与回归验证。
+## 12. 完成状态（截至 2026-02-25）
+- Day1 ~ Day15 已完成最小可用实现与测试闭环。
+- `pkg/rpc/tests/benchmark_test.go` 已提供并发基准测试入口。
+- 已接入 middleware metrics 与 observability metrics（内存指标聚合，Prometheus 可在后续适配）。
+- `pkg/rpc/README.md` 已补充架构、运行方式、校验命令。
+- 验证结果：`go test ./pkg/rpc/...` 与 `CGO_ENABLED=1 go test -race ./pkg/rpc/...` 均通过。

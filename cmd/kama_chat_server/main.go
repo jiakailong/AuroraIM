@@ -8,6 +8,7 @@ import (
 	"kama_chat_server/internal/service/chat"
 	"kama_chat_server/internal/service/gorm"
 	"kama_chat_server/internal/service/kafka"
+	"kama_chat_server/internal/service/query"
 	myredis "kama_chat_server/internal/service/redis"
 	"kama_chat_server/pkg/zlog"
 	"os"
@@ -32,6 +33,14 @@ func main() {
 	gorm.InitGroupInfoService(groupDAO, userDAO)
 	gorm.InitMessageService(messageDAO)
 	gorm.InitUserContactService(userContactDAO, userDAO, groupDAO)
+	if err := query.Init(query.Config{
+		Mode:      conf.QueryConfig.Mode,
+		RPCListen: conf.QueryConfig.RPCListen,
+		RPCTarget: conf.QueryConfig.RPCTarget,
+	}); err != nil {
+		zlog.Fatal("query service init failed: " + err.Error())
+		return
+	}
 	if kafkaConfig.MessageMode == "kafka" {
 		kafka.KafkaService.KafkaInit()
 	}

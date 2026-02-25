@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 type Metadata map[string]string
@@ -73,7 +74,7 @@ func DecodeVarHeader(data []byte) (string, Metadata, error) {
 		return "", nil, fmt.Errorf("protocol: read method len: %w", err)
 	}
 	methodBytes := make([]byte, methodLen)
-	if _, err := reader.Read(methodBytes); err != nil {
+	if _, err := io.ReadFull(reader, methodBytes); err != nil {
 		return "", nil, fmt.Errorf("protocol: read method: %w", err)
 	}
 
@@ -88,7 +89,7 @@ func DecodeVarHeader(data []byte) (string, Metadata, error) {
 			return "", nil, fmt.Errorf("protocol: read metadata key len: %w", err)
 		}
 		key := make([]byte, keyLen)
-		if _, err := reader.Read(key); err != nil {
+		if _, err := io.ReadFull(reader, key); err != nil {
 			return "", nil, fmt.Errorf("protocol: read metadata key: %w", err)
 		}
 
@@ -97,7 +98,7 @@ func DecodeVarHeader(data []byte) (string, Metadata, error) {
 			return "", nil, fmt.Errorf("protocol: read metadata value len: %w", err)
 		}
 		value := make([]byte, valueLen)
-		if _, err := reader.Read(value); err != nil {
+		if _, err := io.ReadFull(reader, value); err != nil {
 			return "", nil, fmt.Errorf("protocol: read metadata value: %w", err)
 		}
 		metadata[string(key)] = string(value)

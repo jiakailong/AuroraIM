@@ -1,13 +1,15 @@
 package v1
 
 import (
-	"github.com/gin-gonic/gin"
 	"kama_chat_server/internal/dto/request"
 	"kama_chat_server/internal/service/gorm"
+	"kama_chat_server/internal/service/query"
 	"kama_chat_server/pkg/constants"
 	"kama_chat_server/pkg/zlog"
 	"log"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // GetUserList 获取联系人列表
@@ -20,7 +22,7 @@ func GetUserList(c *gin.Context) {
 			"message": constants.SYSTEM_ERROR,
 		})
 	}
-	message, userList, ret := gorm.UserContactService.GetUserList(myUserListReq.OwnerId)
+	message, userList, ret := query.QueryService.GetUserList(myUserListReq.OwnerId)
 	JsonBack(c, message, ret, userList)
 }
 
@@ -35,7 +37,7 @@ func LoadMyJoinedGroup(c *gin.Context) {
 		})
 		return
 	}
-	message, groupList, ret := gorm.UserContactService.LoadMyJoinedGroup(loadMyJoinedGroupReq.OwnerId)
+	message, groupList, ret := query.QueryService.LoadMyJoinedGroup(loadMyJoinedGroupReq.OwnerId)
 	JsonBack(c, message, ret, groupList)
 }
 
@@ -51,7 +53,7 @@ func GetContactInfo(c *gin.Context) {
 		return
 	}
 	log.Println(getContactInfoReq)
-	message, contactInfo, ret := gorm.UserContactService.GetContactInfo(getContactInfoReq.ContactId)
+	message, contactInfo, ret := query.QueryService.GetContactInfo(getContactInfoReq.ContactId)
 	JsonBack(c, message, ret, contactInfo)
 }
 
@@ -96,7 +98,7 @@ func GetNewContactList(c *gin.Context) {
 		})
 		return
 	}
-	message, data, ret := gorm.UserContactService.GetNewContactList(req.OwnerId)
+	message, data, ret := query.QueryService.GetNewContactList(req.OwnerId)
 	JsonBack(c, message, ret, data)
 }
 
@@ -171,7 +173,7 @@ func GetAddGroupList(c *gin.Context) {
 		})
 		return
 	}
-	message, data, ret := gorm.UserContactService.GetAddGroupList(req.GroupId)
+	message, data, ret := query.QueryService.GetAddGroupList(req.GroupId)
 	JsonBack(c, message, ret, data)
 }
 

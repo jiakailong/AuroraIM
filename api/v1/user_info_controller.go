@@ -2,12 +2,14 @@ package v1
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"kama_chat_server/internal/dto/request"
 	"kama_chat_server/internal/service/gorm"
+	"kama_chat_server/internal/service/query"
 	"kama_chat_server/pkg/constants"
 	"kama_chat_server/pkg/zlog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Register 注册
@@ -82,7 +84,7 @@ func GetUserInfoList(c *gin.Context) {
 		})
 		return
 	}
-	message, userList, ret := gorm.UserInfoService.GetUserInfoList(req.OwnerId)
+	message, userList, ret := query.QueryService.GetUserInfoList(req.OwnerId)
 	JsonBack(c, message, ret, userList)
 }
 
@@ -127,7 +129,7 @@ func GetUserInfo(c *gin.Context) {
 		})
 		return
 	}
-	message, userInfo, ret := gorm.UserInfoService.GetUserInfo(req.Uuid)
+	message, userInfo, ret := query.QueryService.GetUserInfo(req.Uuid)
 	JsonBack(c, message, ret, userInfo)
 }
 

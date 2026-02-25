@@ -3,7 +3,14 @@ package protocol
 const (
 	FixedHeaderSize = 32
 	CurrentVersion  = uint8(1)
-	DefaultCodecID  = uint8(1)
+)
+
+const (
+	CodecUnknownID  = uint8(0)
+	CodecJSONID     = uint8(1)
+	CodecProtobufID = uint8(2)
+
+	DefaultCodecID = CodecJSONID
 )
 
 const (

@@ -53,6 +53,12 @@ type StaticSrcConfig struct {
 	StaticFilePath   string `toml:"staticFilePath"`
 }
 
+type QueryConfig struct {
+	Mode      string `toml:"mode"`
+	RPCListen string `toml:"rpcListen"`
+	RPCTarget string `toml:"rpcTarget"`
+}
+
 type Config struct {
 	MainConfig      `toml:"mainConfig"`
 	MysqlConfig     `toml:"mysqlConfig"`
@@ -61,6 +67,7 @@ type Config struct {
 	LogConfig       `toml:"logConfig"`
 	KafkaConfig     `toml:"kafkaConfig"`
 	StaticSrcConfig `toml:"staticSrcConfig"`
+	QueryConfig     `toml:"queryConfig"`
 }
 
 var config *Config
