@@ -26,7 +26,7 @@ templateCode = "SMS_154950909"
 logPath = "your log path"
 
 [kafkaConfig]
-messageMode = "channel"# 消息模式 channel or kafka
+messageMode = "kafka"# 消息模式 channel or kafka
 hostPort = "127.0.0.1:9092" # "127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094" 多个kafka服务器
 loginTopic = "login"
 chatTopic = "chat_message"
