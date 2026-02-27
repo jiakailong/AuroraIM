@@ -1,0 +1,8 @@
+{"level":"info","ts":"2026-02-27T11:39:36.277Z","msg":"ws连接成功","func":"chat.NewClientInit","file":"/root/gochat/KamaChat/internal/service/chat/client.go","line":132}
+{"level":"info","ts":"2026-02-27T11:39:36.277Z","msg":"ws read goroutine start","func":"chat.(*Client).Read","file":"/root/gochat/KamaChat/internal/service/chat/client.go","line":50}
+{"level":"info","ts":"2026-02-27T11:39:36.277Z","msg":"ws write goroutine start","func":"chat.(*Client).Write","file":"/root/gochat/KamaChat/internal/service/chat/client.go","line":96}
+{"level":"debug","ts":"2026-02-27T11:39:36.277Z","msg":"欢迎来到kama聊天服务器，亲爱的用户U987654321000000002\n","func":"chat.(*Server).Start","file":"/root/gochat/KamaChat/internal/service/chat/server.go","line":76}
+{"level":"info","ts":"2026-02-27T11:39:39.257Z","msg":"没有找到相关前缀key","func":"redis.GetKeyWithPrefixNilIsErr","file":"/root/gochat/KamaChat/internal/service/redis/redis_service.go","line":73}
+{"level":"info","ts":"2026-02-27T11:39:39.271Z","msg":"redis: nil","func":"gorm.(*messageService).GetMessageList","file":"/root/gochat/KamaChat/internal/service/gorm/message_service.go","line":40}
+{"level":"info","ts":"2026-02-27T11:39:39.271Z","msg":"U123456789000000001 U123456789000000001","func":"gorm.(*messageService).GetMessageList","file":"/root/gochat/KamaChat/internal/service/gorm/message_service.go","line":41}
+{"level":"info","ts":"2026-02-27T11:46:56.282Z","msg":"关闭服务器...","func":"main.main","file":"/root/gochat/KamaChat/cmd/kama_chat_server/main.go","line":88}
